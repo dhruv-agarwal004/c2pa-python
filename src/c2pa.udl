@@ -73,7 +73,7 @@ callback interface SignerCallback {
 };
 
 interface CallbackSigner {
-  constructor(SignerCallback callback, SigningAlg alg, bytes certs, string? ta_url);
+  constructor(SignerCallback callback, SigningAlg alg, [ByRef] bytes certs, string? ta_url);
 };
 
 interface Builder {

@@ -31,7 +31,7 @@ impl CallbackSigner {
     pub fn new(
         callback: Box<dyn SignerCallback>,
         alg: SigningAlg,
-        certs: Vec<u8>,
+        certs: &[u8],
         ta_url: Option<String>,
     ) -> Self {
         // When this closure is called it will call the sign method on the python callback
