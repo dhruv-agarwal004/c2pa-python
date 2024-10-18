@@ -10,7 +10,7 @@
 // specific language governing permissions and limitations under
 // each license.
 
-use c2pa::SigningAlg;
+use c2pa::{AsyncSigner, SigningAlg};
 
 use crate::Result;
 
@@ -45,6 +45,9 @@ impl CallbackSigner {
         if let Some(url) = ta_url {
             signer = signer.set_tsa_url(url);
         }
+        signer.reserve_size = 12448; // TMN temp
+        signer.certs = Vec::new(); // TMN temp
+
         Self { signer }
     }
 
