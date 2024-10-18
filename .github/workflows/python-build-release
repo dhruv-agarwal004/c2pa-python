@@ -1,0 +1,190 @@
+name: Build and Release Python Project with Rust Bindings
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+  build-linux:
+    needs: create_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up Cargo authentication
+        run: |
+          git config --global url."https://${{ secrets.PAT_TOKEN }}:@github.com/".insteadOf "https://github.com/"
+          echo "[net]" >> ~/.cargo/config.toml
+          echo "git-fetch-with-cli = true" >> ~/.cargo/config.toml
+      - name: Install dependencies
+        run: |
+          
+          pip install -r requirements.txt
+      - name: Build project
+        run: |
+          source .venv/bin/activate
+          python -m pip install build
+          python -m build --wheel 
+      - name: Check file existence and list all files
+        run: |
+            echo "Listing all files in ./target/wheels directory:"
+            ls -al ./target/wheels/
+            if [ -f "./target/wheels/c2pa_python-0.5.3-py3-none-linux_x86_64.whl" ]; then
+              echo "File exists"
+            else
+              echo "File does not exist"
+            fi
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./target/wheels/*.whl
+          asset_name: c2pa-python-linux.whl
+          asset_content_type: application/octet-stream
+
+  build-windows:
+    needs: create_release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up Cargo authentication
+        run: |
+          git config --global url."https://${{ secrets.PAT_TOKEN }}:@github.com/".insteadOf "https://github.com/"
+          if (-Not (Test-Path -Path $env:USERPROFILE\.cargo)) {
+            New-Item -ItemType Directory -Path $env:USERPROFILE\.cargo
+          }
+          echo "[net]" >> $env:USERPROFILE\.cargo\config.toml
+          echo "git-fetch-with-cli = true" >> $env:USERPROFILE\.cargo\config.toml
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv\Scripts\activate
+          pip install -r requirements.txt
+      - name: Build project
+        run: |
+          .venv\Scripts\activate
+          python -m pip install build
+          python -m build --wheel --outdir target/wheels
+      - name: Check file existence and list all files
+        run: |
+            echo "Listing all files in ./target/wheels directory:"
+            dir .\target\wheels\
+            if (Test-Path -Path "./target/wheels/c2pa_python-0.5.3-py3-none-win_amd64.whl") {
+              Write-Host "File exists"
+            } else {
+              Write-Host "File does not exist"
+            }
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./target/wheels/*.whl
+          asset_name: c2pa-python-windows.whl
+          asset_content_type: application/octet-stream
+
+  build-macos:
+    needs: create_release
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Set up Cargo authentication
+        run: |
+          git config --global url."https://${{ secrets.PAT_TOKEN }}:@github.com/".insteadOf "https://github.com/"
+          echo "[net]" >> ~/.cargo/config.toml
+          echo "git-fetch-with-cli = true" >> ~/.cargo/config.toml
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+      - name: Build project
+        run: |
+          source .venv/bin/activate
+          python -m pip install build
+          python -m build --wheel --outdir target/wheels
+      - name: Check file existence and list all files
+        run: |
+            echo "Listing all files in ./target/wheels directory:"
+            ls -al ./target/wheels/
+            if [ -f "./target/wheels/c2pa_python-0.5.3-py3-none-macosx_11_0_arm64.whl" ]; then
+              echo "File exists"
+            else
+              echo "File does not exist"
+            fi
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./target/wheels/*.whl
+          asset_name: c2pa-python-macos.whl
+          asset_content_type: application/octet-stream
